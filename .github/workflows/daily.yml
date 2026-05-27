@@ -1,0 +1,22 @@
+name: Daily YouTube Summary
+
+on:
+  schedule:
+    # 22:00 UTC = 07:00 Asia/Seoul
+    - cron: "0 22 * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  summarize:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Placeholder
+        run: |
+          echo "Daily YouTube summary bot will run here."
+          echo "seen_videos.json will be updated and committed after processing."
