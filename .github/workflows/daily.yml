@@ -16,7 +16,19 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Placeholder
-        run: |
-          echo "Daily YouTube summary bot will run here."
-          echo "seen_videos.json will be updated and committed after processing."
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+
+      - name: Check YouTube RSS feeds
+        run: python src/main.py
+
+      - name: Commit seen videos
+        uses: stefanzweifel/git-auto-commit-action@v5
+        with:
+          commit_message: Update seen videos
+          file_pattern: seen_videos.json
