@@ -23,12 +23,17 @@ def main() -> None:
     summarizer_ready = can_summarize()
     telegram_ready = can_send_telegram()
     test_video_id = os.environ.get("TEST_VIDEO_ID", "").strip()
+    telegram_test = os.environ.get("TELEGRAM_TEST", "").lower() == "true"
 
     print(f"Loaded {len(channels)} channel(s)")
     if not summarizer_ready:
         print("OPENAI_API_KEY is not set. Summaries will be skipped.")
     if not telegram_ready:
         print("Telegram secrets are not set. Messages will only be printed.")
+
+    if telegram_test:
+        _send_telegram_test(telegram_ready)
+        return
 
     if test_video_id:
         print(f"Manual test mode for video: {test_video_id}")
@@ -103,6 +108,20 @@ def _process_video(
     transcript = fetch_transcript(video.video_id)
     if transcript is None:
         print("  Transcript: not found")
+        if telegram_ready:
+            send_telegram_message(
+                "\n".join(
+                    [
+                        "[요약 생략]",
+                        "",
+                        f"제목: {video.title}",
+                        f"링크: {video.url}",
+                        "",
+                        "사유: 자막을 가져오지 못했습니다. GitHub Actions 서버 IP가 YouTube 자막 요청에서 차단됐거나, 영상에 사용 가능한 자막이 없을 수 있습니다.",
+                    ]
+                )
+            )
+            print("  Telegram: sent transcript failure notice")
         return True
 
     source = "auto-generated" if transcript.is_generated else "manual"
@@ -128,6 +147,16 @@ def _process_video(
         print("  Telegram: skipped because secrets are not set")
 
     return True
+
+
+def _send_telegram_test(telegram_ready: bool) -> None:
+    print("Telegram test mode")
+    message = "YouTube summary bot Telegram test: 연결 확인 완료"
+    if telegram_ready:
+        send_telegram_message(message)
+        print("Telegram: sent")
+    else:
+        print("Telegram: skipped because secrets are not set")
 
 
 def _indent(text: str, prefix: str) -> str:

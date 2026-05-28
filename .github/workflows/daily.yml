@@ -10,6 +10,11 @@ on:
         description: "Optional YouTube video ID to summarize and send immediately"
         required: false
         type: string
+      telegram_test:
+        description: "Send a Telegram test message without calling YouTube/OpenAI"
+        required: false
+        default: false
+        type: boolean
 
 permissions:
   contents: write
@@ -35,6 +40,7 @@ jobs:
           TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
           TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
           TEST_VIDEO_ID: ${{ inputs.video_id }}
+          TELEGRAM_TEST: ${{ inputs.telegram_test }}
         run: python src/main.py
 
       - name: Commit seen videos
