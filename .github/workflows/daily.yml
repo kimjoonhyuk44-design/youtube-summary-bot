@@ -1,6 +1,9 @@
 name: Daily YouTube Summary
 
 on:
+  push:
+    branches:
+      - main
   schedule:
     # 22:00 UTC = 07:00 Asia/Seoul
     - cron: "0 22 * * *"
@@ -21,6 +24,7 @@ permissions:
 
 jobs:
   summarize:
+    if: ${{ github.event_name != 'push' || contains(github.event.head_commit.message, '[telegram-test]') }}
     runs-on: ubuntu-latest
     steps:
       - name: Checkout repository
@@ -40,11 +44,11 @@ jobs:
           TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
           TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
           TEST_VIDEO_ID: ${{ inputs.video_id }}
-          TELEGRAM_TEST: ${{ inputs.telegram_test }}
+          TELEGRAM_TEST: ${{ inputs.telegram_test || contains(github.event.head_commit.message, '[telegram-test]') }}
         run: python src/main.py
 
       - name: Commit seen videos
-        if: ${{ inputs.video_id == '' }}
+        if: ${{ github.event_name != 'push' && inputs.video_id == '' }}
         uses: stefanzweifel/git-auto-commit-action@v7
         with:
           commit_message: Update seen videos
