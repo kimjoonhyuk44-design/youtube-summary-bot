@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import os
 from pathlib import Path
 
 from summarize import can_summarize, format_summary_message, summarize_video
@@ -21,12 +22,27 @@ def main() -> None:
     found_new = False
     summarizer_ready = can_summarize()
     telegram_ready = can_send_telegram()
+    test_video_id = os.environ.get("TEST_VIDEO_ID", "").strip()
 
     print(f"Loaded {len(channels)} channel(s)")
     if not summarizer_ready:
         print("OPENAI_API_KEY is not set. Summaries will be skipped.")
     if not telegram_ready:
         print("Telegram secrets are not set. Messages will only be printed.")
+
+    if test_video_id:
+        print(f"Manual test mode for video: {test_video_id}")
+        video = Video(
+            channel_id="manual",
+            channel_name="Manual Test",
+            video_id=test_video_id,
+            title=f"Manual test video {test_video_id}",
+            url=f"https://www.youtube.com/watch?v={test_video_id}",
+            published_at="",
+        )
+        _process_video(video, summarizer_ready, telegram_ready)
+        print("Manual test complete. seen_videos.json was not updated.")
+        return
 
     for channel in channels:
         print(f"Checking {channel['name']} ({channel['channel_id']})")
@@ -40,35 +56,10 @@ def main() -> None:
         found_new = True
         print(f"Found {len(new_videos)} new video(s)")
         for video in new_videos:
-            print(f"- {video.title}")
-            print(f"  {video.url}")
-            transcript = fetch_transcript(video.video_id)
-            if transcript is None:
-                print("  Transcript: not found")
-            else:
-                source = "auto-generated" if transcript.is_generated else "manual"
-                print(
-                    "  Transcript: "
-                    f"{len(transcript.text)} characters "
-                    f"({transcript.language_code}, {source})"
-                )
-
-                if not summarizer_ready:
-                    print("  Summary: skipped because OPENAI_API_KEY is not set")
-                    continue
-
-                summary = summarize_video(video.title, video.url, transcript.text)
-                message = format_summary_message(video.title, video.url, summary)
-                print("  Summary:")
-                print(_indent(message, "    "))
-                if telegram_ready:
-                    send_telegram_message(message)
-                    print("  Telegram: sent")
-                else:
-                    print("  Telegram: skipped because secrets are not set")
-
-            seen.setdefault(video.channel_id, [])
-            seen[video.channel_id].append(video.video_id)
+            processed = _process_video(video, summarizer_ready, telegram_ready)
+            if processed:
+                seen.setdefault(video.channel_id, [])
+                seen[video.channel_id].append(video.video_id)
 
     if found_new:
         _save_json(SEEN_PATH, seen)
@@ -101,6 +92,42 @@ def _filter_new_videos(videos: list[Video], seen: dict[str, list[str]]) -> list[
         if video.video_id not in seen.get(video.channel_id, []):
             new_videos.append(video)
     return new_videos
+
+
+def _process_video(
+    video: Video, summarizer_ready: bool, telegram_ready: bool
+) -> bool:
+    print(f"- {video.title}")
+    print(f"  {video.url}")
+
+    transcript = fetch_transcript(video.video_id)
+    if transcript is None:
+        print("  Transcript: not found")
+        return True
+
+    source = "auto-generated" if transcript.is_generated else "manual"
+    print(
+        "  Transcript: "
+        f"{len(transcript.text)} characters "
+        f"({transcript.language_code}, {source})"
+    )
+
+    if not summarizer_ready:
+        print("  Summary: skipped because OPENAI_API_KEY is not set")
+        return False
+
+    summary = summarize_video(video.title, video.url, transcript.text)
+    message = format_summary_message(video.title, video.url, summary)
+    print("  Summary:")
+    print(_indent(message, "    "))
+
+    if telegram_ready:
+        send_telegram_message(message)
+        print("  Telegram: sent")
+    else:
+        print("  Telegram: skipped because secrets are not set")
+
+    return True
 
 
 def _indent(text: str, prefix: str) -> str:

@@ -5,6 +5,11 @@ on:
     # 22:00 UTC = 07:00 Asia/Seoul
     - cron: "0 22 * * *"
   workflow_dispatch:
+    inputs:
+      video_id:
+        description: "Optional YouTube video ID to summarize and send immediately"
+        required: false
+        type: string
 
 permissions:
   contents: write
@@ -25,9 +30,15 @@ jobs:
         run: pip install -r requirements.txt
 
       - name: Check YouTube RSS feeds
+        env:
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+          TEST_VIDEO_ID: ${{ inputs.video_id }}
         run: python src/main.py
 
       - name: Commit seen videos
+        if: ${{ inputs.video_id == '' }}
         uses: stefanzweifel/git-auto-commit-action@v7
         with:
           commit_message: Update seen videos
