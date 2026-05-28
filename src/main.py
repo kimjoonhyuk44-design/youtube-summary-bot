@@ -3,6 +3,7 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
+from transcript import fetch_transcript
 from youtube_rss import Video, fetch_latest_videos
 
 
@@ -33,6 +34,16 @@ def main() -> None:
         for video in new_videos:
             print(f"- {video.title}")
             print(f"  {video.url}")
+            transcript = fetch_transcript(video.video_id)
+            if transcript is None:
+                print("  Transcript: not found")
+            else:
+                source = "auto-generated" if transcript.is_generated else "manual"
+                print(
+                    "  Transcript: "
+                    f"{len(transcript.text)} characters "
+                    f"({transcript.language_code}, {source})"
+                )
             seen.setdefault(video.channel_id, [])
             seen[video.channel_id].append(video.video_id)
 
@@ -71,4 +82,3 @@ def _filter_new_videos(videos: list[Video], seen: dict[str, list[str]]) -> list[
 
 if __name__ == "__main__":
     main()
-
