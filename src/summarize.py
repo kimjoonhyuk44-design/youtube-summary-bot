@@ -7,7 +7,7 @@ from dataclasses import dataclass
 from openai import OpenAI
 
 
-DEFAULT_MODEL = "gpt-5.2"
+DEFAULT_MODEL = "gpt-4o-mini"
 MAX_TRANSCRIPT_CHARS = 50000
 
 
@@ -158,4 +158,3 @@ def format_summary_message(title: str, url: str, summary: VideoSummary) -> str:
 
     lines.extend(["", summary.disclaimer])
     return "\n".join(lines)
-
