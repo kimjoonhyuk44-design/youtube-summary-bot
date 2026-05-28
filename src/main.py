@@ -3,6 +3,7 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
+from summarize import can_summarize, format_summary_message, summarize_video
 from transcript import fetch_transcript
 from youtube_rss import Video, fetch_latest_videos
 
@@ -17,8 +18,11 @@ def main() -> None:
     channels = _load_json(CHANNELS_PATH)
     seen = _load_seen()
     found_new = False
+    summarizer_ready = can_summarize()
 
     print(f"Loaded {len(channels)} channel(s)")
+    if not summarizer_ready:
+        print("OPENAI_API_KEY is not set. Summaries will be skipped.")
 
     for channel in channels:
         print(f"Checking {channel['name']} ({channel['channel_id']})")
@@ -44,6 +48,16 @@ def main() -> None:
                     f"{len(transcript.text)} characters "
                     f"({transcript.language_code}, {source})"
                 )
+
+                if not summarizer_ready:
+                    print("  Summary: skipped because OPENAI_API_KEY is not set")
+                    continue
+
+                summary = summarize_video(video.title, video.url, transcript.text)
+                message = format_summary_message(video.title, video.url, summary)
+                print("  Summary:")
+                print(_indent(message, "    "))
+
             seen.setdefault(video.channel_id, [])
             seen[video.channel_id].append(video.video_id)
 
@@ -78,6 +92,10 @@ def _filter_new_videos(videos: list[Video], seen: dict[str, list[str]]) -> list[
         if video.video_id not in seen.get(video.channel_id, []):
             new_videos.append(video)
     return new_videos
+
+
+def _indent(text: str, prefix: str) -> str:
+    return "\n".join(f"{prefix}{line}" for line in text.splitlines())
 
 
 if __name__ == "__main__":
