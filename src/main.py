@@ -4,6 +4,7 @@ import json
 from pathlib import Path
 
 from summarize import can_summarize, format_summary_message, summarize_video
+from telegram import can_send_telegram, send_telegram_message
 from transcript import fetch_transcript
 from youtube_rss import Video, fetch_latest_videos
 
@@ -19,10 +20,13 @@ def main() -> None:
     seen = _load_seen()
     found_new = False
     summarizer_ready = can_summarize()
+    telegram_ready = can_send_telegram()
 
     print(f"Loaded {len(channels)} channel(s)")
     if not summarizer_ready:
         print("OPENAI_API_KEY is not set. Summaries will be skipped.")
+    if not telegram_ready:
+        print("Telegram secrets are not set. Messages will only be printed.")
 
     for channel in channels:
         print(f"Checking {channel['name']} ({channel['channel_id']})")
@@ -57,6 +61,11 @@ def main() -> None:
                 message = format_summary_message(video.title, video.url, summary)
                 print("  Summary:")
                 print(_indent(message, "    "))
+                if telegram_ready:
+                    send_telegram_message(message)
+                    print("  Telegram: sent")
+                else:
+                    print("  Telegram: skipped because secrets are not set")
 
             seen.setdefault(video.channel_id, [])
             seen[video.channel_id].append(video.video_id)
